@@ -10,7 +10,6 @@ import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -90,11 +89,14 @@ class CsvWriterTest {
     }
 
     @Test
-    void twoLinesTwoValues() {
-        final List<String> cols = new ArrayList<>();
-        cols.add("foo");
-        cols.add("bar");
+    void oneLineTwoValuesStream() {
+        assertThat(write(w -> w.writeRecord(Stream.of("foo", "bar"))))
+            .isEqualTo("foo,bar\n");
+    }
 
+    @Test
+    void twoLinesTwoValuesList() {
+        final List<String> cols = List.of("foo", "bar");
         assertThat(write(w -> w.writeRecord(cols).writeRecord(cols)))
             .isEqualTo("foo,bar\nfoo,bar\n");
     }
@@ -241,7 +243,17 @@ class CsvWriterTest {
         assertThatThrownBy(() -> crw.build(new UnwritableWriter()).writeRecord(List.of("foo")))
             .isInstanceOf(UncheckedIOException.class)
             .hasMessage("java.io.IOException: Cannot write");
+    }
 
+    @Test
+    void unwritableStream() {
+        assertThatThrownBy(() -> crw.build(new UnwritableWriter()).writeRecord(Stream.of("foo")))
+            .isInstanceOf(UncheckedIOException.class)
+            .hasMessage("java.io.IOException: Cannot write");
+    }
+
+    @Test
+    void unwritableComment() {
         assertThatThrownBy(() -> crw.build(new UnwritableWriter()).writeComment("foo"))
             .isInstanceOf(UncheckedIOException.class)
             .hasMessage("java.io.IOException: Cannot write");

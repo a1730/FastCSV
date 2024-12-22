@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.util.List;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +71,10 @@ class CsvWriterRecordTest {
             .hasMessage("Record already started, call end() on CsvWriterRecord first");
 
         assertThatThrownBy(() -> csv.writeRecord(List.of("foo")))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("Record already started, call end() on CsvWriterRecord first");
+
+        assertThatThrownBy(() -> csv.writeRecord(Stream.of("foo")))
             .isInstanceOf(IllegalStateException.class)
             .hasMessage("Record already started, call end() on CsvWriterRecord first");
     }

@@ -17,6 +17,8 @@ import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.StringJoiner;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 import de.siegmar.fastcsv.util.Preconditions;
 import de.siegmar.fastcsv.util.Util;
@@ -85,14 +87,43 @@ public final class CsvWriter implements Closeable, Flushable {
      * @throws UncheckedIOException if a write-error occurs
      * @throws IllegalStateException if a record is already started (by calling {@link #writeRecord()}) and not ended
      * @see #writeRecord(String...)
+     * @see #writeRecord(Stream)
      */
     public CsvWriter writeRecord(final Iterable<String> values) {
         validateNoOpenRecord();
+        int fieldIdx = 0;
         try {
-            int fieldIdx = 0;
             for (final String value : values) {
                 writeInternal(value, fieldIdx++);
             }
+            return endRecord();
+        } catch (final IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /**
+     * Writes a complete line - one or more fields and new line character(s) at the end.
+     *
+     * @param values the fields to write ({@code null} values are handled as empty strings, if
+     *               not configured otherwise ({@link QuoteStrategies#EMPTY}))
+     * @return This CsvWriter.
+     * @throws UncheckedIOException if a write-error occurs
+     * @throws IllegalStateException if a record is already started (by calling {@link #writeRecord()}) and not ended
+     * @see #writeRecord(String...)
+     * @see #writeRecord(Iterable)
+     */
+    public CsvWriter writeRecord(final Stream<String> values) {
+        validateNoOpenRecord();
+        final AtomicInteger fieldIdx = new AtomicInteger();
+        try {
+            values.forEachOrdered(value -> {
+                try {
+                    writeInternal(value, fieldIdx.getAndIncrement());
+                } catch (final IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
             return endRecord();
         } catch (final IOException e) {
             throw new UncheckedIOException(e);
