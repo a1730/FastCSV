@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0](https://github.com/a1730/FastCSV/compare/v4.1.1...v5.0.0) (2026-03-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* return Optional for throwable in status listener
+* convert FieldModifiers class to enum and move modify method to FieldModifier interface
+* rename quoteNonEmpty method to quoteValue and made quoteStrategy non-nullable
+* CSV callback handling and record type logic
+* enforce unique headers by default
+* Refactor field count handling in CsvReader
+* strict handling of characters after closing quote, by default
+* disable automatic buffer flushing for writer use
+* removed deprecated code (Limits and SimpleFieldModifier)
+* remove the RecordWrapper
+* changed implementation of CsvIndex and CsvPage to Java records
+* require Java 17 / Android 34
+
+### Features
+
+* add `ofSingleCsvRecord` methods to `CsvReader` for convenience ([e006347](https://github.com/a1730/FastCSV/commit/e00634709989df5d8f53394629fee880e3d2cd93))
+* add returnHeader to NamedCsvRecordHandler to allow early-access to the header [#147](https://github.com/a1730/FastCSV/issues/147) ([18688cc](https://github.com/a1730/FastCSV/commit/18688cc6c8c3903db6daf99da8c88575f236d4d6))
+* enforce unique headers by default ([60774d3](https://github.com/a1730/FastCSV/commit/60774d3e2b8506023c79ef7d98b99981ba948170))
+* ignore same comment character if comments are ignored ([960d8c8](https://github.com/a1730/FastCSV/commit/960d8c80412384d3d6ac278ebc27e25f970ca7e0))
+* introduce relaxed parsing mode for CsvReader ([bd9991f](https://github.com/a1730/FastCSV/commit/bd9991fb4bf2db80c6758c505c7a4ca09d4905d0))
+
+
+### Bug Fixes
+
+* correct BomInputStream buffer offset for short inputs ([#174](https://github.com/a1730/FastCSV/issues/174)) ([1275474](https://github.com/a1730/FastCSV/commit/12754742eef3751135fb3a7c4c0a3fe44ea48497))
+* don't call peek line predicate with empty string if reached EOF ([76dff29](https://github.com/a1730/FastCSV/commit/76dff29e9b5bda420da4dd44b84aac5161b5a0ca))
+
+
+### Performance Improvements
+
+* precompute comment strategy check in parser ([6d6e874](https://github.com/a1730/FastCSV/commit/6d6e8746efbba84d8f65164bd826760ce3714835))
+* use range check in fast-forward loops ([85eb73f](https://github.com/a1730/FastCSV/commit/85eb73f1577f1939d3ef0c3ae5424a75e37eaf07))
+
+
+### Code Refactoring
+
+* changed implementation of CsvIndex and CsvPage to Java records ([724bc38](https://github.com/a1730/FastCSV/commit/724bc38e75eb043b76cebb569c41fde93751a1a7))
+* convert FieldModifiers class to enum and move modify method to FieldModifier interface ([1bc5f26](https://github.com/a1730/FastCSV/commit/1bc5f26cd5158e3f1449711116359bf93a0c20e9))
+* CSV callback handling and record type logic ([056c865](https://github.com/a1730/FastCSV/commit/056c865f724742cc53b2300604169ed1f542a466))
+* disable automatic buffer flushing for writer use ([2babea6](https://github.com/a1730/FastCSV/commit/2babea63880369e073ac6c18dfaab753200f87e8))
+* Refactor field count handling in CsvReader ([85bbfdf](https://github.com/a1730/FastCSV/commit/85bbfdfca1f5c17c2a0b018bdbe67289b472d8f6))
+* remove the RecordWrapper ([006380c](https://github.com/a1730/FastCSV/commit/006380c8bfe410486237b66ec3ee00c2b6bcbf01))
+* removed deprecated code (Limits and SimpleFieldModifier) ([0d05add](https://github.com/a1730/FastCSV/commit/0d05add4a02982d8ecb11bb03cc1d8e5314a52f0))
+* rename quoteNonEmpty method to quoteValue and made quoteStrategy non-nullable ([cb5a999](https://github.com/a1730/FastCSV/commit/cb5a9996aa2115a0e99270460ca837346d730bf8))
+* return Optional for throwable in status listener ([98aeaab](https://github.com/a1730/FastCSV/commit/98aeaab708b4c307fe1e394f84469808500de075))
+* strict handling of characters after closing quote, by default ([3ac07d1](https://github.com/a1730/FastCSV/commit/3ac07d1c3b7bee2ea299e3998383e8430460c5bd))
+
+
+### Build System
+
+* require Java 17 / Android 34 ([d8fadf0](https://github.com/a1730/FastCSV/commit/d8fadf0c31c50c1aec35b3dad48a05d4a12f79da))
+
 ## [4.1.1](https://github.com/osiegmar/FastCSV/compare/v4.1.0...v4.1.1) (2026-03-08)
 
 
