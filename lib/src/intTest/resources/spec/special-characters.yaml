@@ -1,0 +1,37 @@
+# Character usage:
+#   ␍  carriage return (\r)
+#   ␊  line feed (\n)
+#   ␤  carriage return + line feed (\r\n)
+#   ⏎  all variations of line endings (\r, \n, \r\n)
+#   ␠  various spaces
+name: Special characters
+description: >-
+  RFC 4180 limits the allowed characters to printable ASCII while RFC 4180-bis does not impose such a limitation.
+  Characters without a syntactic function in CSV (including control characters) are treated as regular field content.
+checks:
+  - id: special-characters-1
+    input: "A\0B,C"
+    description: >-
+      A NUL character in an unquoted field is treated as regular field content
+    records:
+      - [ "A\0B", 'C' ]
+  - id: special-characters-2
+    input: "\"A\0B\",C"
+    description: >-
+      A NUL character in a quoted field is treated as regular field content
+    records:
+      - [ "A\0B", 'C' ]
+  - id: special-characters-3
+    input: "﻿A,B"
+    description: >-
+      A byte order mark is not stripped but treated as regular field content
+      (unless BOM detection is explicitly enabled by the parser)
+    records:
+      - [ "﻿A", 'B' ]
+  - id: special-characters-4
+    input: 'sep=;␊A;B'
+    description: >-
+      The Excel-specific "sep=" hint is not part of CSV and is treated as regular record data
+    records:
+      - [ 'sep=;' ]
+      - [ 'A;B' ]

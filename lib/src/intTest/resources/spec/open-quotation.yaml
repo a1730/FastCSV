@@ -34,3 +34,23 @@ checks:
       As the second field didn't start with a quotation mark, the parser should treat this as a regular field and not part of an open quotation. The quotation mark after the `B` should be treated as a regular character.
     records:
       - [ 'A', 'B"' ]
+  - id: open-quotation-4
+    input: '"A'
+    description: >-
+      A quoted field that is never closed, ended by end of data.
+    records:
+      - [ 'A' ]
+  - id: open-quotation-5
+    input: '"A⏎'
+    description: >-
+      A quoted field that is never closed, ended by a line break and end of data.
+      As the quotation never closes, the line break is treated as field content and not as a record terminator.
+    records:
+      - [ 'A⏎' ]
+  - id: open-quotation-6
+    input: '"A,B⏎C'
+    description: >-
+      A quoted field that is never closed, spanning multiple lines.
+      Field separators and line breaks are treated as field content until end of data.
+    records:
+      - [ 'A,B⏎C' ]

@@ -21,3 +21,21 @@ checks:
     input: '"A""B"'
     records:
       - [ 'A"B' ]
+  - id: escape-quotation-4
+    input: '""""'
+    description: >-
+      A quoted field that consists solely of one escaped quotation mark
+    records:
+      - [ '"' ]
+  - id: escape-quotation-5
+    input: '""""""'
+    description: >-
+      A quoted field that consists solely of two escaped quotation marks
+    records:
+      - [ '""' ]
+  - id: escape-quotation-6
+    input: '"A""",B'
+    description: >-
+      An escaped quotation mark directly before the closing quotation mark, followed by another field
+    records:
+      - [ 'A"', 'B' ]

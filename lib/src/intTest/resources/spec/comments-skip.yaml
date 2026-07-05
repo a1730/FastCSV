@@ -41,3 +41,20 @@ checks:
   - id: comments-skip-7
     input: "#⏎#⏎#"
     records: []
+  - id: comments-skip-8
+    input: '"#A",B'
+    description: >-
+      The hash sign loses its special treatment if within a quoted field
+    records:
+      - [ '#A', 'B' ]
+  - id: comments-skip-9
+    input: '"A⏎#B",X⏎C,D'
+    description: >-
+      A line starting with a hash sign is not a comment if it is part of a multi-line quoted field
+    records:
+      - [ 'A⏎#B', 'X' ]
+      - [ 'C', 'D' ]
+  - id: comments-skip-10
+    input: 'A,"B⏎#C"'
+    records:
+      - [ 'A', 'B⏎#C' ]

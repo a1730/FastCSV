@@ -55,3 +55,16 @@ checks:
       - [ '' ]
       - [ '' ]
       - [ '' ]
+  - id: comments-read-8
+    input: '"#A",B'
+    description: >-
+      The hash sign loses its special treatment if within a quoted field
+    records:
+      - [ '#A', 'B' ]
+  - id: comments-read-9
+    input: '"A⏎#B",X⏎C,D'
+    description: >-
+      A line starting with a hash sign is not a comment if it is part of a multi-line quoted field
+    records:
+      - [ 'A⏎#B', 'X' ]
+      - [ 'C', 'D' ]

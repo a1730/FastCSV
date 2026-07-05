@@ -23,3 +23,20 @@ checks:
     records:
       - ['']
       - ['D']
+  - id: line-breaks-4
+    input: 'A␊B␤C␍D'
+    description: >-
+      Line ending styles may be mixed within a single file
+    records:
+      - ['A']
+      - ['B']
+      - ['C']
+      - ['D']
+  - id: line-breaks-5
+    input: 'A␊␊B'
+    description: >-
+      Consecutive line breaks form empty records (unless empty lines are skipped)
+    records:
+      - ['A']
+      - ['']
+      - ['B']

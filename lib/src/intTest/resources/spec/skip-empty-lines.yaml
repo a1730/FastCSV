@@ -26,3 +26,11 @@ checks:
     records:
       - [ 'A' ]
       - [ '' ]
+  - id: skip-empty-lines-4
+    input: 'A␤␤␤B'
+    records:
+      - [ 'A' ]
+      - [ 'B' ]
+  - id: skip-empty-lines-5
+    input: '␤␤'
+    records: []

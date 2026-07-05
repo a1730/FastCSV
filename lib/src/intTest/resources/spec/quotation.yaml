@@ -25,3 +25,19 @@ checks:
     input: 'A,"B"'
     records:
       - [ 'A', 'B' ]
+  - id: quotation-5
+    input: '""'
+    description: >-
+      A single, quoted but empty field
+    records:
+      - [ '' ]
+  - id: quotation-6
+    input: 'A,""'
+    records:
+      - [ 'A', '' ]
+  - id: quotation-7
+    input: '"␠D␠"'
+    description: >-
+      Various whitespace characters (space, tab, form feed) within a quoted field are preserved
+    records:
+      - [ '␠D␠' ]

@@ -1,0 +1,32 @@
+# Character usage:
+#   ␍  carriage return (\r)
+#   ␊  line feed (\n)
+#   ␤  carriage return + line feed (\r\n)
+#   ⏎  all variations of line endings (\r, \n, \r\n)
+#   ␠  various spaces
+name: Quotes in unquoted fields (violating RFC 4180)
+description: >-
+  RFC 4180 section 2.6 specifies:
+  "Fields containing line breaks (CRLF), double quotes, and commas should be enclosed in double-quotes."
+
+  A quotation mark that appears within a field that did not start with a quotation mark has no special meaning
+  and is treated as a regular character. As such input violates RFC 4180, a parser may also reject it.
+settings:
+  exceptionAllowed: true
+checks:
+  - id: quotes-in-unquoted-fields-1
+    input: 'a"b,c'
+    records:
+      - [ 'a"b', 'c' ]
+  - id: quotes-in-unquoted-fields-2
+    input: 'a""b,c'
+    description: >-
+      Quote escaping does not apply outside of quoted fields
+    records:
+      - [ 'a""b', 'c' ]
+  - id: quotes-in-unquoted-fields-3
+    input: 'A"B",C'
+    description: >-
+      A field that starts with a regular character does not enter quoted mode, even if quotation marks follow
+    records:
+      - [ 'A"B"', 'C' ]
