@@ -24,6 +24,7 @@ import de.siegmar.fastcsv.util.Util;
 })
 final class StrictCsvParser implements CsvParser {
 
+    private static final int STATUS_ESCAPED_QUOTE = 64;
     private static final int STATUS_LAST_CHAR_WAS_CR = 32;
     private static final int STATUS_COMMENTED_RECORD = 16;
     private static final int STATUS_NEW_FIELD = 8;
@@ -252,8 +253,11 @@ final class StrictCsvParser implements CsvParser {
                             lStatus = STATUS_COMMENTED_RECORD;
                             continue mode_check;
                         } else if (c == qChar && (lStatus & STATUS_DATA_FIELD) == 0) {
-                            // quote and not in data-only mode
-                            lStatus = STATUS_QUOTED_FIELD | STATUS_QUOTED_MODE;
+                            // quote and not in data-only mode;
+                            // re-entering quoted mode (STATUS_QUOTED_FIELD already set) means an escaped quote --
+                            // remember that so materialize() only unescapes fields that actually need it
+                            lStatus = STATUS_QUOTED_FIELD | STATUS_QUOTED_MODE
+                                | ((lStatus & STATUS_QUOTED_FIELD) != 0 ? STATUS_ESCAPED_QUOTE : 0);
                             continue mode_check;
                         } else {
                             if ((lStatus & STATUS_QUOTED_FIELD) == 0) {
@@ -267,7 +271,10 @@ final class StrictCsvParser implements CsvParser {
                                         break;
                                     }
                                 }
-                            } else if (!allowExtraCharsAfterClosingQuote) {
+                            } else if (allowExtraCharsAfterClosingQuote) {
+                                // cleanDelimiters() has to merge the extra characters with the quoted content
+                                lStatus |= STATUS_ESCAPED_QUOTE;
+                            } else {
                                 throw new CsvParseException(
                                     "Unexpected character after closing quote: '%c' (0x%x) (record starting at line %d)"
                                         .formatted(c, (int) c, startingLineNumber));
@@ -293,9 +300,14 @@ final class StrictCsvParser implements CsvParser {
         if ((lStatus & STATUS_QUOTED_FIELD) != 0) {
             // field with quotes
             final int beginAfterQuote = lBegin + 1;
-            final int endAfterField = lPos - (lBuf[lPos - 1] == quoteCharacter ? 1 : 0);
-            callbackHandler.addField(lBuf, beginAfterQuote,
-                cleanDelimiters(lBuf, beginAfterQuote, endAfterField, quoteCharacter), true);
+            // Only strip a trailing quote if there is one to strip: for a field that consists of nothing
+            // but the opening quote, lBuf[lPos - 1] is that very quote and stripping it would put
+            // endAfterField before beginAfterQuote.
+            final int endAfterField = lPos - (lPos - 1 > lBegin && lBuf[lPos - 1] == quoteCharacter ? 1 : 0);
+            final int len = (lStatus & STATUS_ESCAPED_QUOTE) != 0
+                ? cleanDelimiters(lBuf, beginAfterQuote, endAfterField, quoteCharacter)
+                : endAfterField - beginAfterQuote;
+            callbackHandler.addField(lBuf, beginAfterQuote, len, true);
             return;
         }
 

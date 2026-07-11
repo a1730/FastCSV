@@ -54,3 +54,17 @@ checks:
       Field separators and line breaks are treated as field content until end of data.
     records:
       - [ 'A,B⏎C' ]
+  - id: open-quotation-7
+    input: '"'
+    description: >-
+      A quotation mark that opens a field and is immediately followed by end of data.
+      The quotation never closes and encloses no content, so the record holds a single empty field.
+    records:
+      - [ '' ]
+  - id: open-quotation-8
+    input: 'A⏎"'
+    description: >-
+      An open quotation with no content as the last record of the data.
+    records:
+      - [ 'A' ]
+      - [ '' ]
