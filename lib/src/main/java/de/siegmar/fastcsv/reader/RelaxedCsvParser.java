@@ -164,25 +164,13 @@ final class RelaxedCsvParser implements CsvParser {
         "checkstyle:FinalParameters",
         "checkstyle:ParameterAssignment",
         "checkstyle:NPathComplexity",
-        "checkstyle:BooleanExpressionComplexity",
         "PMD.AvoidReassigningParameters",
         "PMD.AssignmentInOperand"
     })
     private boolean parseUnquoted(int ch) throws IOException {
         boolean endOfRecord = true;
-        boolean onlyWhitespace = true;
 
         do {
-            // fast-forward
-            while (currentFieldIndex < currentField.length && reader.len > reader.start
-                && ch != CR && ch != LF && ch != fsep && ch != qChar) {
-                currentField[currentFieldIndex++] = (char) ch;
-                if (onlyWhitespace && ch > SPACE) {
-                    onlyWhitespace = false;
-                }
-                ch = reader.buffer[reader.start++];
-            }
-
             if (ch == fsep && (fsepRemainder == null || reader.consumeIf(fsepRemainder))) {
                 endOfRecord = false;
                 break;
@@ -194,20 +182,63 @@ final class RelaxedCsvParser implements CsvParser {
             if (ch == LF) {
                 break;
             }
-            if (ch == qChar && trimWhitespacesAroundQuotes && onlyWhitespace) {
+            if (ch == qChar && trimWhitespacesAroundQuotes && fieldContainsOnlyWhitespace()) {
                 currentFieldIndex = 0;
                 return parseQuoted();
             }
 
             appendChar(ch);
-            if (onlyWhitespace && ch > SPACE) {
-                onlyWhitespace = false;
-            }
+            appendRun(findRunEnd(true));
         } while ((ch = reader.read()) != EOF);
 
         callbackHandler.addField(currentField, 0, currentFieldIndex, false);
         currentFieldIndex = 0;
         return endOfRecord;
+    }
+
+    /// Finds the end of the longest run of buffered characters that are plain data,
+    /// starting at `reader.start`. CR/LF and the quote character always end the run;
+    /// in unquoted fields, the field separator does as well.
+    ///
+    /// Characters `<= CR` other than CR/LF also end the run although they are plain data --
+    /// the caller simply appends them one by one and scans again.
+    ///
+    /// @return the buffer position after the last plain character
+    private int findRunEnd(final boolean unquoted) {
+        final char[] buf = reader.buffer;
+        final int bufLen = reader.len;
+        int i;
+        for (i = reader.start; i < bufLen; i++) {
+            final char c = buf[i];
+            if (c <= CR || c == qChar || (unquoted && c == fsep)) {
+                break;
+            }
+        }
+        return i;
+    }
+
+    /// Appends the buffered characters between `reader.start` and `end` (exclusive)
+    /// to the current field, consuming them from the reader.
+    private void appendRun(final int end) {
+        final int from = reader.start;
+        final int runLen = end - from;
+        if (runLen > 0) {
+            if (runLen > currentField.length - currentFieldIndex) {
+                growField((long) currentFieldIndex + runLen);
+            }
+            System.arraycopy(reader.buffer, from, currentField, currentFieldIndex, runLen);
+            currentFieldIndex += runLen;
+            reader.start = end;
+        }
+    }
+
+    private boolean fieldContainsOnlyWhitespace() {
+        for (int i = 0; i < currentFieldIndex; i++) {
+            if (currentField[i] > SPACE) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @SuppressWarnings({
@@ -229,13 +260,6 @@ final class RelaxedCsvParser implements CsvParser {
                             .formatted(startingLineNumber));
                 }
                 break;
-            }
-
-            // fast-forward
-            while (currentFieldIndex < currentField.length && reader.len > reader.start
-                && ch != CR && ch != LF && ch != qChar) {
-                currentField[currentFieldIndex++] = (char) ch;
-                ch = reader.buffer[reader.start++];
             }
 
             if (ch == qChar && (ch = reader.read()) != qChar) {
@@ -273,6 +297,8 @@ final class RelaxedCsvParser implements CsvParser {
                 lines++;
             } else if (ch == LF) {
                 lines++;
+            } else {
+                appendRun(findRunEnd(false));
             }
         }
 
@@ -290,6 +316,7 @@ final class RelaxedCsvParser implements CsvParser {
                 break;
             }
             appendChar(ch);
+            appendRun(findRunEnd(false));
         }
 
         callbackHandler.setComment(currentField, 0, currentFieldIndex);
@@ -298,20 +325,25 @@ final class RelaxedCsvParser implements CsvParser {
 
     private void appendChar(final int ch) {
         if (currentField.length == currentFieldIndex) {
-            if (currentField.length == maxBufferSize) {
-                throw new CsvParseException("""
-                    The maximum buffer size of %d is \
-                    insufficient to read the data of a single field. \
-                    This issue typically arises when a quotation begins but does not conclude within the \
-                    confines of this buffer's maximum limit. \
-                    (record starting at line %d)""".formatted(maxBufferSize, startingLineNumber));
-            }
-            final char[] newField = new char[Math.min(maxBufferSize, currentField.length * 2)];
-            System.arraycopy(currentField, 0, newField, 0, currentField.length);
-            currentField = newField;
+            growField(currentFieldIndex + 1L);
         }
 
         currentField[currentFieldIndex++] = (char) ch;
+    }
+
+    private void growField(final long requiredSize) {
+        if (requiredSize > maxBufferSize) {
+            throw new CsvParseException("""
+                The maximum buffer size of %d is \
+                insufficient to read the data of a single field. \
+                This issue typically arises when a quotation begins but does not conclude within the \
+                confines of this buffer's maximum limit. \
+                (record starting at line %d)""".formatted(maxBufferSize, startingLineNumber));
+        }
+        final long newSize = Math.min(maxBufferSize, Math.max(currentField.length * 2L, requiredSize));
+        final char[] newField = new char[(int) newSize];
+        System.arraycopy(currentField, 0, newField, 0, currentFieldIndex);
+        currentField = newField;
     }
 
     @Override
