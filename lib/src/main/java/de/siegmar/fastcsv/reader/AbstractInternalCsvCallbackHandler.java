@@ -90,7 +90,7 @@ public abstract sealed class AbstractInternalCsvCallbackHandler<T> extends CsvCa
     /// @throws CsvParseException if the addition exceeds the limit of record size or maximum fields count.
     @Override
     protected void addField(final char[] buf, final int offset, final int len, final boolean quoted) {
-        final String modifiedField = modifyField(new String(buf, offset, len), quoted);
+        final String modifiedField = modifyField(len == 0 ? "" : new String(buf, offset, len), quoted);
         final int modifiedFieldLength = modifiedField.length();
 
         if (maxFieldSize < modifiedFieldLength) {
