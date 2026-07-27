@@ -29,6 +29,10 @@ import de.siegmar.fastcsv.util.Util;
 /// This process is optimized on performance and low memory usage – no CSV data is stored in memory.
 /// The current status can be monitored via [IndexedCsvReaderBuilder#statusListener(StatusListener)].
 ///
+/// The index itself is held in memory, though: roughly 40 bytes per [CsvIndex.CsvPage], of which there is one
+/// per [IndexedCsvReaderBuilder#pageSize(int)] records. Index memory therefore scales with the record count,
+/// not with the file size.
+///
 /// As indexing is performed on a byte level, only **UTF-8 and single-byte charsets** (such as ISO-8859-1 or
 /// US-ASCII) are supported; anything else is rejected with an [IllegalArgumentException]. This also applies to
 /// a charset detected via a BOM header.
@@ -520,6 +524,9 @@ public final class IndexedCsvReader<T> implements Closeable {
 
         /// Sets the `pageSize` for pages returned by [#readPage(int)]
         /// (default: [#DEFAULT_PAGE_SIZE]).
+        ///
+        /// One index entry (roughly 40 bytes of heap) is kept per `pageSize` records – a smaller page size
+        /// grants finer-grained random access at the cost of memory.
         ///
         /// @param pageSize the maximum size of pages.
         /// @return This updated object, allowing additional method calls to be chained together.

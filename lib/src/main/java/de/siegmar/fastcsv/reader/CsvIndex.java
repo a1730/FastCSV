@@ -9,6 +9,9 @@ import java.util.StringJoiner;
 ///
 /// Instances of this class are immutable and safe for use by multiple threads.
 ///
+/// The index holds one [CsvPage] per [#pageSize()] records, so its memory footprint grows with the record
+/// count, not with the file size.
+///
 /// This class implements [Serializable], so an index can be persisted and reloaded
 /// to avoid re-indexing the same file. A previously built index can be passed to
 /// [IndexedCsvReader.IndexedCsvReaderBuilder#index(CsvIndex)] for reuse – which requires all settings,

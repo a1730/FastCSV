@@ -19,6 +19,21 @@ reading the file while the index is still being created.
 A status monitor is available to track indexing progress, making it ideal for graphical user interfaces.
 :::
 
+:::note[Index memory]
+No CSV data is kept in memory, but the index is. It holds one page entry – roughly 40 bytes of heap – per
+`pageSize` records:
+
+```
+index heap ≈ 40 bytes × ceil(recordCount / pageSize)
+```
+
+The index thus scales with the **record count**, not with the file size: a file of many tiny records needs a far
+larger index than an equally sized file of few large records. A smaller page size buys finer-grained random access
+at the cost of heap. In the worst case – a file of 1-byte records – the index takes roughly 40% of the file size
+at the default page size of 100, but roughly 40 times the file size at `pageSize(1)`. Size the page accordingly
+when indexing files of unknown shape.
+:::
+
 :::caution[Character set support]
 Unlike `CsvReader`, `IndexedCsvReader` supports only **UTF-8 and single-byte character sets** (such as ISO-8859-1
 or US-ASCII). Anything else is rejected with an `IllegalArgumentException` – this also applies to a character set
