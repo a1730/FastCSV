@@ -193,6 +193,21 @@ class CsvWriterTest {
         assertThat(file).hasContent("value1,value2\r\n");
     }
 
+    /// A configuration that cannot produce a writer must be rejected before the file is opened –
+    /// opening it truncates it, and no later cleanup can undo that.
+    @Test
+    void rejectedConfigurationLeavesExistingFileUntouched(@TempDir final Path tempDir) throws IOException {
+        final Path file = tempDir.resolve("existing.csv");
+        Files.writeString(file, "important,data\n");
+
+        assertThatThrownBy(() -> CsvWriter.builder().fieldSeparator(',').quoteCharacter(',').build(file))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("Control characters must differ "
+                + "(fieldSeparator=,, quoteCharacter=,, commentCharacter=#)");
+
+        assertThat(file).hasContent("important,data\n");
+    }
+
     @Test
     void chained() {
         final CsvWriter writer = CsvWriter.builder()

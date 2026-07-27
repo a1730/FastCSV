@@ -48,12 +48,7 @@ public final class CsvWriter implements Closeable, Flushable {
     @SuppressWarnings("checkstyle:ParameterNumber")
     CsvWriter(final Writable writer, final char fieldSeparator, final char quoteCharacter,
               final char commentCharacter, final QuoteStrategy quoteStrategy, final LineDelimiter lineDelimiter) {
-        Preconditions.checkArgument(!Util.isNewline(fieldSeparator), "fieldSeparator must not be a newline char");
-        Preconditions.checkArgument(!Util.isNewline(quoteCharacter), "quoteCharacter must not be a newline char");
-        Preconditions.checkArgument(!Util.isNewline(commentCharacter), "commentCharacter must not be a newline char");
-        Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter, commentCharacter),
-            "Control characters must differ (fieldSeparator=%s, quoteCharacter=%s, commentCharacter=%s)".formatted(
-                fieldSeparator, quoteCharacter, commentCharacter));
+        assertFields(fieldSeparator, quoteCharacter, commentCharacter);
 
         this.writer = writer;
         this.fieldSeparator = fieldSeparator;
@@ -64,6 +59,21 @@ public final class CsvWriter implements Closeable, Flushable {
 
         emptyFieldValue = new char[] {quoteCharacter, quoteCharacter};
         lineDelimiterChars = lineDelimiter.toString().toCharArray();
+    }
+
+    /*
+     * Add every control character rule here, not to the constructor body: CsvWriterBuilder checks
+     * these before it opens a file, because opening truncates it under the default open options and
+     * a later failure cannot undo that.
+     */
+    private static void assertFields(final char fieldSeparator, final char quoteCharacter,
+                                     final char commentCharacter) {
+        Preconditions.checkArgument(!Util.isNewline(fieldSeparator), "fieldSeparator must not be a newline char");
+        Preconditions.checkArgument(!Util.isNewline(quoteCharacter), "quoteCharacter must not be a newline char");
+        Preconditions.checkArgument(!Util.isNewline(commentCharacter), "commentCharacter must not be a newline char");
+        Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter, commentCharacter), () ->
+            "Control characters must differ (fieldSeparator=%s, quoteCharacter=%s, commentCharacter=%s)".formatted(
+                fieldSeparator, quoteCharacter, commentCharacter));
     }
 
     /// Creates a [CsvWriterBuilder] instance used to configure and create instances of
@@ -513,8 +523,43 @@ public final class CsvWriter implements Closeable, Flushable {
             Objects.requireNonNull(file, "file must not be null");
             Objects.requireNonNull(charset, "charset must not be null");
 
-            return csvWriter(new OutputStreamWriter(Files.newOutputStream(file, openOptions),
-                charset), bufferSize, autoFlush);
+            // Opening the file creates or truncates it unless the caller's openOptions say otherwise –
+            // reject an unusable configuration while that is still undone.
+            assertFields(fieldSeparator, quoteCharacter, commentCharacter);
+
+            return buildOwning(Files.newOutputStream(file, openOptions), charset);
+        }
+
+        /// Like [#build(OutputStream, Charset)] but takes ownership of the stream: if writer
+        /// construction fails, the stream is closed before the exception propagates. The caller never
+        /// receives a handle it could close itself.
+        ///
+        /// This does not undo the file creation or truncation the open already performed – it only
+        /// keeps the descriptor from leaking.
+        ///
+        /// Only for streams this library opened itself – streams passed in by the caller stay owned by
+        /// the caller and must not be closed here.
+        ///
+        /// @param outputStream the library-opened stream to write CSV data to.
+        /// @param charset      the character set to use.
+        /// @return a new CsvWriter - never `null`.
+        @SuppressWarnings({"checkstyle:IllegalCatch", "PMD.AvoidCatchingGenericException"})
+        CsvWriter buildOwning(final OutputStream outputStream, final Charset charset) {
+            try {
+                return build(outputStream, charset);
+            } catch (final RuntimeException | Error e) {
+                // Catching broadly is the point: whatever construction throws, the stream must not
+                // survive it. Control character rules are already checked before the file is opened,
+                // but the encoder and the buffer are only built here.
+                try {
+                    outputStream.close();
+                } catch (final Exception | Error closeException) {
+                    // Mirrors try-with-resources: a failure to close never displaces the failure that
+                    // caused the close, whether it is checked or not.
+                    e.addSuppressed(closeException);
+                }
+                throw e;
+            }
         }
 
         /// Convenience method to write to the console (standard output).
