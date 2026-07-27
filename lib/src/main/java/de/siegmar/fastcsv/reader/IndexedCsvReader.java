@@ -125,7 +125,7 @@ public final class IndexedCsvReader<T> implements Closeable {
         if (csvIndex != null) {
             this.csvIndex = validatePrebuiltIndex(file, bomHeaderLength,
                 (byte) fieldSeparator, (byte) quoteCharacter, commentStrategy, (byte) commentCharacter,
-                csvIndex);
+                pageSize, csvIndex);
         } else {
             this.csvIndex = buildIndex(bomHeaderLength, statusListener);
         }
@@ -194,9 +194,11 @@ public final class IndexedCsvReader<T> implements Closeable {
         }
     }
 
+    @SuppressWarnings("checkstyle:ParameterNumber")
     private static CsvIndex validatePrebuiltIndex(final Path file, final int bomHeaderLength, final byte fieldSeparator,
                                                   final byte quoteCharacter, final CommentStrategy commentStrategy,
-                                                  final byte commentCharacter, final CsvIndex csvIndex)
+                                                  final byte commentCharacter, final int pageSize,
+                                                  final CsvIndex csvIndex)
         throws IOException {
         final var expectedSignature = new StringJoiner(", ")
             .add("bomHeaderLength=" + bomHeaderLength)
@@ -205,6 +207,7 @@ public final class IndexedCsvReader<T> implements Closeable {
             .add("quoteCharacter=" + quoteCharacter)
             .add("commentStrategy=" + commentStrategy)
             .add("commentCharacter=" + commentCharacter)
+            .add("pageSize=" + pageSize)
             .toString();
         final var actualSignature = new StringJoiner(", ")
             .add("bomHeaderLength=" + csvIndex.bomHeaderLength())
@@ -213,6 +216,7 @@ public final class IndexedCsvReader<T> implements Closeable {
             .add("quoteCharacter=" + csvIndex.quoteCharacter())
             .add("commentStrategy=" + csvIndex.commentStrategy())
             .add("commentCharacter=" + csvIndex.commentCharacter())
+            .add("pageSize=" + csvIndex.pageSize())
             .toString();
 
         Preconditions.checkArgument(expectedSignature.equals(actualSignature), () ->
@@ -239,7 +243,7 @@ public final class IndexedCsvReader<T> implements Closeable {
             ).scan();
 
             final var idx = new CsvIndex(bomHeaderLength, channel.size(), (byte) fieldSeparator, (byte) quoteCharacter,
-                commentStrategy, (byte) commentCharacter,
+                commentStrategy, (byte) commentCharacter, pageSize,
                 listener.recordCounter.get(), listener.pageOffsets);
 
             statusListener.onComplete();
@@ -503,6 +507,9 @@ public final class IndexedCsvReader<T> implements Closeable {
         }
 
         /// Sets a prebuilt index that should be used for accessing the file.
+        ///
+        /// The file and all settings – including [#pageSize(int)] – have to be the ones the index was
+        /// built with; otherwise an [IllegalArgumentException] is thrown.
         ///
         /// @param csvIndex a prebuilt index
         /// @return This updated object, allowing additional method calls to be chained together.

@@ -100,7 +100,7 @@ class IndexedCsvReaderTest {
                     quoteCharacter=", commentStrategy=NONE, commentCharacter=#, \
                     allowExtraCharsAfterClosingQuote=false, allowUnclosedQuote=true, pageSize=1, \
                     index=CsvIndex[bomHeaderLength=0, fileSize=3, fieldSeparator=44, quoteCharacter=34, \
-                    commentStrategy=NONE, commentCharacter=35, recordCount=1, pageCount=1]]""",
+                    commentStrategy=NONE, commentCharacter=35, pageSize=1, recordCount=1, pageCount=1]]""",
                 file);
     }
 
@@ -350,7 +350,7 @@ class IndexedCsvReaderTest {
 
         // a prebuilt index with a broken page offset causes an IOException on seek
         final var index = new CsvIndex(0, Files.size(file), (byte) ',', (byte) '"',
-            CommentStrategy.NONE, (byte) '#', 2L, List.of(new CsvIndex.CsvPage(-1, 1)));
+            CommentStrategy.NONE, (byte) '#', 1, 2L, List.of(new CsvIndex.CsvPage(-1, 1)));
         final var icrb = singlePageBuilder().index(index);
 
         assertThatThrownBy(() -> icrb.build(NamedCsvRecordHandler.of(), file))
@@ -729,9 +729,35 @@ class IndexedCsvReaderTest {
 
             assertThatThrownBy(() -> builder.index(index).fieldSeparator(';').ofCsvRecord(file))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("Index does not match! Expected: bomHeaderLength=0, fileSize=3, fieldSeparator=59, "
-                    + "quoteCharacter=34, commentStrategy=NONE, commentCharacter=35; Actual: bomHeaderLength=0, "
-                    + "fileSize=3, fieldSeparator=44, quoteCharacter=34, commentStrategy=NONE, commentCharacter=35");
+                .hasMessage("""
+                    Index does not match! \
+                    Expected: bomHeaderLength=0, fileSize=3, fieldSeparator=59, quoteCharacter=34, \
+                    commentStrategy=NONE, commentCharacter=35, pageSize=100; \
+                    Actual: bomHeaderLength=0, fileSize=3, fieldSeparator=44, quoteCharacter=34, \
+                    commentStrategy=NONE, commentCharacter=35, pageSize=100""");
+        }
+
+        @Test
+        void indexWithDifferentPageSize() throws IOException {
+            // Pages are cut every pageSize records while readPage() reads exactly pageSize records,
+            // so a mismatch would silently skip or duplicate records.
+            final Path file = prepareTestFile("r1\nr2\nr3\nr4\nr5\nr6");
+
+            final CsvIndex index = IndexedCsvReader.builder()
+                .pageSize(3)
+                .ofCsvRecord(file)
+                .getIndex();
+
+            assertThat(index.pageSize()).isEqualTo(3);
+
+            assertThatThrownBy(() -> IndexedCsvReader.builder().pageSize(1).index(index).ofCsvRecord(file))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("""
+                    Index does not match! \
+                    Expected: bomHeaderLength=0, fileSize=17, fieldSeparator=44, quoteCharacter=34, \
+                    commentStrategy=NONE, commentCharacter=35, pageSize=1; \
+                    Actual: bomHeaderLength=0, fileSize=17, fieldSeparator=44, quoteCharacter=34, \
+                    commentStrategy=NONE, commentCharacter=35, pageSize=3""");
         }
 
     }
