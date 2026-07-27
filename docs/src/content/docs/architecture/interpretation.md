@@ -33,6 +33,9 @@ While RFC 4180 refers to US-ASCII, RFC 4180-bis uses Unicode (UTF-8).
 
 FastCSV supports any encoding when reading or writing CSV files while defaulting to UTF-8.
 
+The only exception is `IndexedCsvReader`: because it builds its index on byte level, it is limited to UTF-8 and
+single-byte encodings. See [Indexed reading](/guides/examples/indexed-read/) for details.
+
 ### Empty fields / null values
 
 The CSV format itself does not provide a way to distinguish between empty fields and null values. This can be a problem

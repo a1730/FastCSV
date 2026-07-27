@@ -19,6 +19,26 @@ reading the file while the index is still being created.
 A status monitor is available to track indexing progress, making it ideal for graphical user interfaces.
 :::
 
+:::caution[Character set support]
+Unlike `CsvReader`, `IndexedCsvReader` supports only **UTF-8 and single-byte character sets** (such as ISO-8859-1
+or US-ASCII). Anything else is rejected with an `IllegalArgumentException` – this also applies to a character set
+detected via a BOM header.
+
+The index is built on byte level while the pages themselves are decoded and parsed on character level. That only
+holds together if every ASCII byte is exactly its own character, and multi-byte character sets break this in one
+of two ways:
+
+- UTF-16 and UTF-32 encode ASCII as multiple bytes, and variable-width character sets (Shift_JIS, Big5, GBK,
+  GB18030, ISO-2022-\*, …) place ASCII byte values *inside* the encoding of other characters, where the indexer
+  mistakes them for a field separator, quote or line ending.
+- Others are ASCII-transparent when encoding, but consume a following byte when *decoding*. EUC-JP, for example,
+  decodes any byte pair starting `0xA1`–`0xFE` as a single character, swallowing a line feed the indexer has
+  already counted as a record boundary.
+
+For those files, either transcode to UTF-8 or read them with `CsvReader`, which works on characters and supports
+any character set.
+:::
+
 The main API classes and methods for indexed reading are:
 
 ```java

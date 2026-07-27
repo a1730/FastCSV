@@ -29,10 +29,20 @@ import de.siegmar.fastcsv.util.Util;
 /// This process is optimized on performance and low memory usage – no CSV data is stored in memory.
 /// The current status can be monitored via [IndexedCsvReaderBuilder#statusListener(StatusListener)].
 ///
-/// As indexing is performed on a byte level, only ASCII-compatible charsets (where ASCII characters map to
-/// single, identical bytes – such as UTF-8, ISO-8859-1 or US-ASCII) are supported. Charsets that encode ASCII
-/// as multiple bytes (such as UTF-16 and UTF-32) are rejected with an [IllegalArgumentException] – this also
-/// applies to a charset detected via a BOM header.
+/// As indexing is performed on a byte level, only **UTF-8 and single-byte charsets** (such as ISO-8859-1 or
+/// US-ASCII) are supported; anything else is rejected with an [IllegalArgumentException]. This also applies to
+/// a charset detected via a BOM header.
+///
+/// Other multibyte charsets cannot be indexed byte-wise, for either of two reasons. UTF-16, UTF-32 and the
+/// variable-width legacy charsets (Shift_JIS, Big5, GBK, GB18030, ISO-2022-*, …) put ASCII byte values
+/// *inside* the encoding of other characters, where the indexer mistakes them for structure. Others are
+/// ASCII-transparent when encoding but consume a following byte when *decoding* — EUC-JP decodes any byte
+/// pair starting `0xA1`–`0xFE` as one character, swallowing a line feed or separator the indexer already
+/// counted. Single-byte charsets must additionally map every ASCII byte to its own character in both
+/// directions, which rules out EBCDIC and charsets that map an ASCII byte elsewhere.
+///
+/// For any of these, transcode the file to UTF-8 or read it with [CsvReader], which is character-oriented
+/// and supports every charset.
 ///
 /// This class is thread-safe.
 ///
@@ -48,6 +58,9 @@ import de.siegmar.fastcsv.util.Util;
 /// @param <T> the type of the CSV record.
 @SuppressWarnings({"checkstyle:ClassFanOutComplexity", "checkstyle:ClassDataAbstractionCoupling"})
 public final class IndexedCsvReader<T> implements Closeable {
+
+    /// Highest value a control character may have; the byte-oriented indexer cannot handle any other.
+    private static final int MAX_BASE_ASCII = 127;
 
     private final Path file;
     private final Charset charset;
@@ -101,9 +114,13 @@ public final class IndexedCsvReader<T> implements Closeable {
             bomHeaderLength = bomHeader.getLength();
         }
 
-        // The byte-oriented index scanner (CsvScanner) requires an ASCII-compatible charset; reject
-        // both the user-supplied and the BOM-detected charset if it is not (e.g. UTF-16 / UTF-32).
-        assertAsciiCompatibleCharset(charset);
+        // Applies to the BOM-detected charset just as much as to the supplied one.
+        Preconditions.checkArgument(mapsAsciiToIdenticalBytes(charset), () -> """
+            Charset '%s' is not supported by IndexedCsvReader, which builds its index on byte level. \
+            Only UTF-8 and single-byte charsets that map ASCII to identical single bytes are supported. \
+            Transcode the file to UTF-8 or use CsvReader, which reads sequentially and supports any \
+            charset.\
+            """.formatted(charset.name()));
 
         if (csvIndex != null) {
             this.csvIndex = validatePrebuiltIndex(file, bomHeaderLength,
@@ -136,18 +153,35 @@ public final class IndexedCsvReader<T> implements Closeable {
     }
 
     /*
-     * The CsvScanner that builds the index operates on raw bytes and assumes the structural ASCII
-     * characters (field separator, quote, comment, CR, LF) are encoded as single, identical bytes.
-     * Charsets such as UTF-16 and UTF-32 encode ASCII as multiple bytes, which corrupts both the
-     * index and the decoded data. Such charsets are therefore rejected up front.
+     * CsvScanner builds the index from raw bytes while the pages are decoded and parsed as characters.
+     * That only holds together if every ASCII byte is exactly its own character: control characters are
+     * restricted to ASCII (see MAX_BASE_ASCII), so verifying the whole range covers all of them at once,
+     * in both directions. It rules out EBCDIC (comma at 0x6B) and charsets that map an ASCII byte to a
+     * different character (IBM864 decodes 0x25 to U+066A).
+     *
+     * Multibyte charsets are excluded outright: the bytes of their multibyte characters fall inside the
+     * ASCII range (Shift_JIS, GBK and Big5 use 0x40-0x7E, GB18030 also 0x30-0x39, and the stateful
+     * ISO-2022-* family uses 0x21-0x7E, covering even the default control characters), so the scanner
+     * would read data as structure. UTF-8 is the one safe multibyte charset - its sequences use lead
+     * bytes >= 0xC2 and continuation bytes 0x80-0xBF, never an ASCII byte.
      */
-    private static void assertAsciiCompatibleCharset(final Charset charset) {
-        final byte[] probe = "\r\n\",#".getBytes(charset);
-        final byte[] expected = {'\r', '\n', '"', ',', '#'};
-        Preconditions.checkArgument(Arrays.equals(probe, expected), () ->
-            ("Charset '%s' is not supported by IndexedCsvReader. Only ASCII-compatible charsets, "
-                + "where ASCII characters map to single identical bytes, are supported; "
-                + "UTF-16 and UTF-32 are not.").formatted(charset.name()));
+    private static boolean mapsAsciiToIdenticalBytes(final Charset charset) {
+        if (StandardCharsets.UTF_8.equals(charset)) {
+            // The default charset, and the only multibyte one that qualifies - no need to probe it.
+            return true;
+        }
+        if (!charset.canEncode() || charset.newEncoder().maxBytesPerChar() > 1) {
+            return false;
+        }
+
+        final byte[] asciiBytes = new byte[MAX_BASE_ASCII + 1];
+        for (int i = 0; i < asciiBytes.length; i++) {
+            asciiBytes[i] = (byte) i;
+        }
+        final String asciiChars = new String(asciiBytes, StandardCharsets.US_ASCII);
+
+        return Arrays.equals(asciiChars.getBytes(charset), asciiBytes)
+            && asciiChars.equals(new String(asciiBytes, charset));
     }
 
     private static Optional<BomHeader> detectBom(final Path file, final StatusListener statusListener)
@@ -348,7 +382,6 @@ public final class IndexedCsvReader<T> implements Closeable {
 
         private static final int DEFAULT_MAX_BUFFER_SIZE = 16 * 1024 * 1024;
 
-        private static final int MAX_BASE_ASCII = 127;
         private static final int DEFAULT_PAGE_SIZE = 100;
         private static final int MIN_PAGE_SIZE = 1;
 
@@ -576,18 +609,20 @@ public final class IndexedCsvReader<T> implements Closeable {
 
         /// Constructs a new [IndexedCsvReader] for the specified arguments.
         ///
-        /// Only ASCII-compatible charsets are supported; UTF-16 and UTF-32 (whether passed explicitly or
-        /// detected via a BOM header) are rejected with an [IllegalArgumentException].
+        /// Only UTF-8 and single-byte charsets are supported – whether passed explicitly or detected via a
+        /// BOM header. Every configured control character must additionally map to its own single byte in
+        /// both directions under that charset.
         ///
         /// @param <T>             the type of the CSV record.
         /// @param callbackHandler the callback handler to use.
         /// @param file            the file to read data from.
-        /// @param charset         the character set to use (must be ASCII-compatible).
+        /// @param charset         the character set to use (UTF-8 or a single-byte charset).
         /// @return a new IndexedCsvReader - never `null`. Remember to close it!
         /// @throws IOException              if an I/O error occurs.
         /// @throws NullPointerException     if callbackHandler, file or charset is `null`
-        /// @throws IllegalArgumentException if argument validation fails, or the (supplied or BOM-detected)
-        ///                                  charset is not ASCII-compatible (e.g. UTF-16 or UTF-32).
+        /// @throws IllegalArgumentException if argument validation fails, the (supplied or BOM-detected)
+        ///                                  charset is neither UTF-8 nor single-byte, or a configured
+        ///                                  control character does not map to its own byte in it.
         public <T> IndexedCsvReader<T> build(final CsvCallbackHandler<T> callbackHandler,
                                              final Path file, final Charset charset) throws IOException {
             Objects.requireNonNull(callbackHandler, "callbackHandler must not be null");
