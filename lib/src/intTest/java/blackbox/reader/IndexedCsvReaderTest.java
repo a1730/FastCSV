@@ -146,6 +146,31 @@ class IndexedCsvReaderTest {
     }
 
     @Test
+    void lineNumbersAreIndependentOfPageSize() throws IOException {
+        // The byte-level index and the char-level parser must agree on line numbers.
+        // readPage() reseeds the parser from the index only for the first record of a page,
+        // so any disagreement would make the reported line numbers pageSize-dependent.
+        // The quoted field holds a lone CR followed by a lone LF: two line breaks.
+        final Path file = prepareTestFile("\"a\rb\nc\"\nX\nY\n");
+
+        try (var pagedByOne = IndexedCsvReader.builder().pageSize(1).ofCsvRecord(file);
+             var pagedByTen = IndexedCsvReader.builder().pageSize(10).ofCsvRecord(file)) {
+
+            final List<Long> singleRecordPages = List.of(
+                pagedByOne.readPage(0).getFirst().getStartingLineNumber(),
+                pagedByOne.readPage(1).getFirst().getStartingLineNumber(),
+                pagedByOne.readPage(2).getFirst().getStartingLineNumber());
+
+            final List<Long> onePage = pagedByTen.readPage(0).stream()
+                .map(CsvRecord::getStartingLineNumber)
+                .toList();
+
+            softly.assertThat(singleRecordPages).containsExactly(1L, 4L, 5L);
+            softly.assertThat(onePage).isEqualTo(singleRecordPages);
+        }
+    }
+
+    @Test
     void resetClearsFinishedFlag() throws IOException {
         // Reading the partial last page calls parse() pageSize times;
         // the trailing call hits EOF and sets parser.finished = true.

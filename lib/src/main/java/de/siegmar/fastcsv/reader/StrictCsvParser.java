@@ -184,6 +184,10 @@ final class StrictCsvParser implements CsvParser {
                                 lStatus &= ~STATUS_LAST_CHAR_WAS_CR;
                             }
                         } else {
+                            // any other character ends a pending CR – a later lone LF is a line break
+                            // of its own, not the second half of a CRLF pair
+                            lStatus &= ~STATUS_LAST_CHAR_WAS_CR;
+
                             // fast-forward
                             for (; lPos < lLen; lPos++) {
                                 final char lookAhead = lBuf[lPos];

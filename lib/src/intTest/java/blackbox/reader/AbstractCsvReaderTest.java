@@ -335,6 +335,22 @@ abstract class AbstractCsvReaderTest {
                 .fields().containsExactly("c"));
     }
 
+    @Test
+    void loneCrAndLoneLfInsideQuotedFieldCountAsTwoLines() {
+        // A lone CR followed by data must not leave the "last char was CR" state armed:
+        // the later lone LF is a line break of its own, not the second half of a CRLF pair.
+        // Record 1 therefore spans lines 1-3.
+        final Stream<CsvRecord> stream = crb.ofCsvRecord("\"a\rb\nc\"\nX\nY\n").stream();
+
+        assertThat(stream).satisfiesExactly(
+            rec1 -> CsvRecordAssert.assertThat(rec1).isStartingLineNumber(1)
+                .fields().containsExactly("a\rb\nc"),
+            rec2 -> CsvRecordAssert.assertThat(rec2).isStartingLineNumber(4)
+                .fields().containsExactly("X"),
+            rec3 -> CsvRecordAssert.assertThat(rec3).isStartingLineNumber(5)
+                .fields().containsExactly("Y"));
+    }
+
     // comment
 
     @Test
