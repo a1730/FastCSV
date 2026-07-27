@@ -1089,11 +1089,39 @@ public final class CsvReader<T> implements Iterable<T>, Closeable {
             Objects.requireNonNull(file, "file must not be null");
             Objects.requireNonNull(charset, "charset must not be null");
 
-            final Reader reader = detectBomHeader
-                ? new BomInputStreamReader(Files.newInputStream(file), charset)
-                : new InputStreamReader(Files.newInputStream(file), charset);
+            // No configuration pre-check here, deliberately: unlike CsvWriter, opening for read has no
+            // side effect to undo, so closing the stream in buildOwning is already a complete fix.
+            return buildOwning(callbackHandler, Files.newInputStream(file), charset);
+        }
 
-            return build(callbackHandler, reader);
+        /// Like [#build(CsvCallbackHandler, InputStream, Charset)] but takes ownership of the stream:
+        /// if reader construction fails, the stream is closed before the exception propagates. The
+        /// caller never receives a handle it could close itself.
+        ///
+        /// Only for streams this library opened itself – streams passed in by the caller stay owned by
+        /// the caller and must not be closed here.
+        ///
+        /// @param <T>             the type of the CSV record.
+        /// @param callbackHandler the record handler to use.
+        /// @param inputStream     the library-opened stream to read data from.
+        /// @param charset         the character set to use.
+        /// @return a new CsvReader - never `null`.
+        @SuppressWarnings({"checkstyle:IllegalCatch", "PMD.AvoidCatchingGenericException"})
+        <T> CsvReader<T> buildOwning(final CsvCallbackHandler<T> callbackHandler,
+                                     final InputStream inputStream, final Charset charset) {
+            try {
+                return build(callbackHandler, inputStream, charset);
+            } catch (final RuntimeException | Error e) {
+                // Catching broadly is the point: whatever construction throws, the stream must not survive it.
+                try {
+                    inputStream.close();
+                } catch (final Exception | Error closeException) {
+                    // Mirrors try-with-resources: a failure to close never displaces the failure that
+                    // caused the close, whether it is checked or not.
+                    e.addSuppressed(closeException);
+                }
+                throw e;
+            }
         }
 
         private boolean isRelaxedConfiguration() {
