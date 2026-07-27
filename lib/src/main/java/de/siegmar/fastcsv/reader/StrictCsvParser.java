@@ -97,11 +97,11 @@ final class StrictCsvParser implements CsvParser {
         Preconditions.checkArgument(!Util.isNewline(commentCharacter), "commentCharacter must not be a newline char");
 
         if (commentStrategy == CommentStrategy.NONE) {
-            Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter),
+            Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter), () ->
                 "Control characters must differ (fieldSeparator=%s, quoteCharacter=%s)".formatted(
                     fieldSeparator, quoteCharacter));
         } else {
-            Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter, commentCharacter),
+            Preconditions.checkArgument(!Util.containsDupe(fieldSeparator, quoteCharacter, commentCharacter), () ->
                 "Control characters must differ (fieldSeparator=%s, quoteCharacter=%s, commentCharacter=%s)".formatted(
                     fieldSeparator, quoteCharacter, commentCharacter));
 
