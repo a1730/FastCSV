@@ -960,8 +960,8 @@ public final class CsvReader<T> implements Iterable<T>, Closeable {
         /// implementation such as [java.io.BufferedInputStream]. Performance may be even likely
         /// better if you do not.
         ///
-        /// If [#detectBomHeader(boolean)] is enabled, this method will immediately cause consumption of the
-        /// input stream to read the BOM header and determine the character set.
+        /// If [#detectBomHeader(boolean)] is enabled, the BOM header is read to determine the character
+        /// set when reading starts – this method itself does not consume the input stream.
         ///
         /// Use [#build(CsvCallbackHandler,Path,Charset)] for optimal performance when reading files.
         ///
