@@ -1,16 +1,23 @@
 # Security Policy
 
+## Supported Versions
+
+Only the 4.x line is maintained. Older lines (3.x, 2.x, 1.x) have reached end of life and receive no
+security fixes — please upgrade to 4.x, as no backports are provided.
+
 ## Reporting a Vulnerability
 
 **Please do not report security vulnerabilities through public GitHub issues, discussions, or pull requests.**
 
-Preferably, use the **GitHub Security Advisory** feature. If you are not sure, please email the maintainer:
+Preferably, [**report it privately via GitHub**](https://github.com/osiegmar/FastCSV/security/advisories/new).
+This keeps the report confidential, lets us discuss it in one place and produces an advisory that notifies
+downstream users once a fix is released. If you are not sure, please email the maintainer:
 
 oliver[@]siegmar.de
 
 Please include as much of the information listed below as you can to help to better understand and resolve the issue:
 
-* The type of issue (e.g., buffer overflow, SQL injection, or cross-site scripting)
+* The type of issue (e.g., parser desynchronization, resource exhaustion, or unsafe file handling)
 * Full paths of source file(s) related to the manifestation of the issue
 * The location of the affected source code (tag/branch/commit or direct URL)
 * Any special configuration required to reproduce the issue
