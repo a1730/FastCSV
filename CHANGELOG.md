@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0](https://github.com/a1730/FastCSV/compare/v4.4.0...v5.0.0) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* return Optional for throwable in status listener
+* convert FieldModifiers class to enum and move modify method to FieldModifier interface
+* rename quoteNonEmpty method to quoteValue and made quoteStrategy non-nullable
+* CSV callback handling and record type logic
+* enforce unique headers by default
+* Refactor field count handling in CsvReader
+* strict handling of characters after closing quote, by default
+* disable automatic buffer flushing for writer use
+* removed deprecated code (Limits and SimpleFieldModifier)
+* remove the RecordWrapper
+* changed implementation of CsvIndex and CsvPage to Java records
+* require Java 17 / Android 34
+
+### Features
+
+* add `ofSingleCsvRecord` methods to `CsvReader` for convenience ([e006347](https://github.com/a1730/FastCSV/commit/e00634709989df5d8f53394629fee880e3d2cd93))
+* add allowUnclosedQuote flag to reader builders ([#173](https://github.com/a1730/FastCSV/issues/173)) ([171101a](https://github.com/a1730/FastCSV/commit/171101a75cab840fb23165bccd50ffa3106dadad))
+* add FieldMismatchStrategy to replace allowExtraFields/allowMissingFields ([b1049ac](https://github.com/a1730/FastCSV/commit/b1049ac7a2277ae2ecaae54276cf211851e479a5)), closes [#176](https://github.com/a1730/FastCSV/issues/176)
+* add header validation support to NamedCsvRecordHandler ([#151](https://github.com/a1730/FastCSV/issues/151)) ([e50ad43](https://github.com/a1730/FastCSV/commit/e50ad4341e74c0dd9fe5edf90916dd545425b54a))
+* add returnHeader to NamedCsvRecordHandler to allow early-access to the header [#147](https://github.com/a1730/FastCSV/issues/147) ([18688cc](https://github.com/a1730/FastCSV/commit/18688cc6c8c3903db6daf99da8c88575f236d4d6))
+* deprecate allowExtraCharsAfterClosingQuote ([4523745](https://github.com/a1730/FastCSV/commit/45237452b1eb44d71927399379ffbe33da3bdd47)), closes [#170](https://github.com/a1730/FastCSV/issues/170)
+* enforce unique headers by default ([60774d3](https://github.com/a1730/FastCSV/commit/60774d3e2b8506023c79ef7d98b99981ba948170))
+* ignore same comment character if comments are ignored ([960d8c8](https://github.com/a1730/FastCSV/commit/960d8c80412384d3d6ac278ebc27e25f970ca7e0))
+* introduce relaxed parsing mode for CsvReader ([bd9991f](https://github.com/a1730/FastCSV/commit/bd9991fb4bf2db80c6758c505c7a4ca09d4905d0))
+* lock skipLines once CSV parsing has started ([fb018d2](https://github.com/a1730/FastCSV/commit/fb018d24236c0f60bf477c5ee48bca41137b147b))
+* propagate CsvParseException from readers unwrapped ([1f4fa3e](https://github.com/a1730/FastCSV/commit/1f4fa3eb36e8dd6f8593bc930429d2ee2e2f3715))
+
+
+### Bug Fixes
+
+* align IndexedCsvReader header capture exception wrapping with page reads ([1923e7e](https://github.com/a1730/FastCSV/commit/1923e7e7db3be1094b88494931f9cbd2f7e59a21))
+* clear stale CR flag on closing quote in StrictCsvParser ([a6d3de5](https://github.com/a1730/FastCSV/commit/a6d3de5cdae666bc83d6239e027419b2a1a5bc37))
+* clear stale CR flag on data chars in StrictCsvParser ([d598c2c](https://github.com/a1730/FastCSV/commit/d598c2c74d1fcfc13121e08abb49c994d69f8e33))
+* close file stream when building a reader from a Path fails ([53b2311](https://github.com/a1730/FastCSV/commit/53b2311f8085e6bea6db3784aa8682e615fd4be5))
+* correct BomInputStream buffer offset for short inputs ([#174](https://github.com/a1730/FastCSV/issues/174)) ([1275474](https://github.com/a1730/FastCSV/commit/12754742eef3751135fb3a7c4c0a3fe44ea48497))
+* detect BOM correctly on short streams in BomInputStream ([efc1633](https://github.com/a1730/FastCSV/commit/efc163346b09ed5fafc7b958d19d220f403b485a))
+* don't call peek line predicate with empty string if reached EOF ([76dff29](https://github.com/a1730/FastCSV/commit/76dff29e9b5bda420da4dd44b84aac5161b5a0ca))
+* make IndexedCsvReader page reads with named records order-independent ([00193db](https://github.com/a1730/FastCSV/commit/00193db704a04804115735f020918f5387541646))
+* make writer construction from a Path safe ([849373e](https://github.com/a1730/FastCSV/commit/849373e64719c520f8d55363d3f32061b30463fd))
+* peekLine in RelaxedCsvParser truncated long lines ([ce86205](https://github.com/a1730/FastCSV/commit/ce862056344d0781f41e223a5fbe4c59bc0bee1e))
+* peekLine left buffer in inconsistent state after compaction ([0819c4f](https://github.com/a1730/FastCSV/commit/0819c4ff5d34aab2d7217acbe44598e6d9783e14))
+* prevent ArrayIndexOutOfBoundsException in NamedCsvRecord.findFields ([0a05a0b](https://github.com/a1730/FastCSV/commit/0a05a0bcaf6b58c0d5c5486f3abdb3043a6f192a))
+* prevent data corruption after seek in IndexedCsvReader with multibyte charsets ([c7d45ff](https://github.com/a1730/FastCSV/commit/c7d45ffb2ed21b74bfe408bd612a36079a2d6d40))
+* prevent leading empty line from being captured as header ([9d4b178](https://github.com/a1730/FastCSV/commit/9d4b1780726a627b7ba8f9be4aab17c78ed5f34c))
+* prevent skipLine from resurrecting an unterminated last line at EOF ([be02dab](https://github.com/a1730/FastCSV/commit/be02dabe7bade7d83257be93370d5cb4d285a53d))
+* reject non-ASCII-compatible charsets in IndexedCsvReader ([8cc6ea8](https://github.com/a1730/FastCSV/commit/8cc6ea841da7d23560f3e6dc72c8ff613afc4789))
+* reject prebuilt CsvIndex with mismatched pageSize ([9878618](https://github.com/a1730/FastCSV/commit/9878618436b3292f4d80f36acadf0267c5e00124))
+* reset() in StrictCsvParser left parser-state fields stale ([9c0d607](https://github.com/a1730/FastCSV/commit/9c0d6071600d56ec0abd06c07b4bbab45d8e544c))
+* restore missing space before link in SourceExample component ([36e45ee](https://github.com/a1730/FastCSV/commit/36e45ee0493c3bc54ed8075ae39ed5543e3361bf))
+* restrict IndexedCsvReader to UTF-8 and single-byte charsets ([695e090](https://github.com/a1730/FastCSV/commit/695e090d72c1b775a0a9de88fa9dfb5afa26ad14))
+
+
+### Performance Improvements
+
+* avoid String allocation for empty fields ([6ada9d4](https://github.com/a1730/FastCSV/commit/6ada9d4f8daaeb99e2878214f30c9ee2ccceaaea))
+* bulk-copy scan loops in RelaxedCsvParser ([e623a6e](https://github.com/a1730/FastCSV/commit/e623a6e27e63938977f417fb438076b02b94c7d4))
+* defer validation message formatting in parsers ([2f23a35](https://github.com/a1730/FastCSV/commit/2f23a353a1c853058869a88ed262cf20512c27dd))
+* precompute comment strategy check in parser ([6d6e874](https://github.com/a1730/FastCSV/commit/6d6e8746efbba84d8f65164bd826760ce3714835))
+* skip unescape pass for quoted fields without escaped quotes ([09a256b](https://github.com/a1730/FastCSV/commit/09a256b49cfa2f5b73cffa5c5f8dbb42a46519c5))
+* use range check in fast-forward loops ([85eb73f](https://github.com/a1730/FastCSV/commit/85eb73f1577f1939d3ef0c3ae5424a75e37eaf07))
+
+
+### Code Refactoring
+
+* changed implementation of CsvIndex and CsvPage to Java records ([724bc38](https://github.com/a1730/FastCSV/commit/724bc38e75eb043b76cebb569c41fde93751a1a7))
+* convert FieldModifiers class to enum and move modify method to FieldModifier interface ([1bc5f26](https://github.com/a1730/FastCSV/commit/1bc5f26cd5158e3f1449711116359bf93a0c20e9))
+* CSV callback handling and record type logic ([056c865](https://github.com/a1730/FastCSV/commit/056c865f724742cc53b2300604169ed1f542a466))
+* disable automatic buffer flushing for writer use ([2babea6](https://github.com/a1730/FastCSV/commit/2babea63880369e073ac6c18dfaab753200f87e8))
+* Refactor field count handling in CsvReader ([85bbfdf](https://github.com/a1730/FastCSV/commit/85bbfdfca1f5c17c2a0b018bdbe67289b472d8f6))
+* remove the RecordWrapper ([006380c](https://github.com/a1730/FastCSV/commit/006380c8bfe410486237b66ec3ee00c2b6bcbf01))
+* removed deprecated code (Limits and SimpleFieldModifier) ([0d05add](https://github.com/a1730/FastCSV/commit/0d05add4a02982d8ecb11bb03cc1d8e5314a52f0))
+* rename quoteNonEmpty method to quoteValue and made quoteStrategy non-nullable ([cb5a999](https://github.com/a1730/FastCSV/commit/cb5a9996aa2115a0e99270460ca837346d730bf8))
+* return Optional for throwable in status listener ([98aeaab](https://github.com/a1730/FastCSV/commit/98aeaab708b4c307fe1e394f84469808500de075))
+* strict handling of characters after closing quote, by default ([3ac07d1](https://github.com/a1730/FastCSV/commit/3ac07d1c3b7bee2ea299e3998383e8430460c5bd))
+
+
+### Build System
+
+* require Java 17 / Android 34 ([d8fadf0](https://github.com/a1730/FastCSV/commit/d8fadf0c31c50c1aec35b3dad48a05d4a12f79da))
+
 ## [4.4.0](https://github.com/osiegmar/FastCSV/compare/v4.3.1...v4.4.0) (2026-07-28)
 
 
